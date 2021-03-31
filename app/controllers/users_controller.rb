@@ -1,17 +1,22 @@
-class UsersController<ApplicationController
+class UsersController < ApplicationController
+  before_action :set_user, only: [:edit, :update, :show, :destroy]
 
+  before_action :require_user, only: [:edit, :update]
+  before_action :require_same_user, only: [:edit, :update, :destroy]
 
   def index
     @user = User.paginate(page: params[:page], per_page: 5)
   end
+
   def new
     @user = User.new
   end
 
   def create
-    @user= User.new(user_params)
+    @user = User.new(user_params)
     if @user.save
-      flash[:notice] ="Welcome to Alpha Blog #{@user.username}, you have successfully"
+      session[:user_id] = @user.id
+      flash[:notice] = "Welcome to Alpha Blog #{@user.username}, you have successfully"
       redirect_to articles_path
     else
       render 'new'
@@ -19,11 +24,11 @@ class UsersController<ApplicationController
   end
 
   def edit
-    @user = User.find(params[:id])
+
   end
 
   def update
-    @user = User.find(params[:id])
+
     if @user.update(user_params)
       flash[:notice] = "Update successfully"
       redirect_to @user
@@ -33,13 +38,37 @@ class UsersController<ApplicationController
   end
 
   def show
-    @user = User.find(params[:id])
+
     @articles = @user.articles.paginate(page: params[:page], per_page: 5)
   end
 
-  private
-  def user_params
-    params.require(:user).permit(:username,:email,:password)
+  def destroy
 
+    @user.destroy
+    if !current_user.admin?
+    session[:user_id] = nil
+    end
+      flash[:notice] = "Your account information was successfully deleted"
+      redirect_to articles_path
+
+  end
+
+  private
+
+  def user_params
+    params.require(:user).permit(:username, :email, :password)
+
+  end
+
+  def set_user
+    @user = User.find_by(id: params[:id])
+  end
+
+  def require_same_user
+
+    if current_user != @user && !current_user.admin?
+      flash[:alert] = "You can only edit or delete your own profile"
+      redirect_to @user
+    end
   end
 end
